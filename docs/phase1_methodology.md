@@ -41,14 +41,3 @@ The generated report includes ranked evidence previews. Review those previews fo
 The comparison must report failures honestly. A structural parser can preserve tables better
 while a page OCR pipeline can flatten a wide table and lose column relationships. Phase 1
 measures that trade-off.
-
-## Reproduction
-
-```powershell
-uv sync --extra dev
-uv run apollo ingest --pipeline all
-uv run apollo benchmark --top-k 5
-```
-
-The Markdown and JSON reports are written under `reports/`. Docling's Markdown and lossless
-JSON exports are written under `data/processed/docling/` for direct inspection.

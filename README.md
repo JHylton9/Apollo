@@ -1,7 +1,11 @@
-# Apollo - JCF Agent Project
+# Apollo - JCF Intelligent Agents (AAI3004) Capstone Project
 
-Phase 1 implements a reproducible retrieval benchmark over the supplied Jamaica
-Constabulary Force PDFs. It builds two independent Chroma collections from the same corpus:
+Jaydon Hylton - 2210144
+Javaiane Robinson - 2304749
+Chadwick Cox - 1800729
+
+So hase 1 implements a reproducible retrieval benchmark over Jamaica
+Constabulary Force data stored in raw folder. It builds two independent Chroma collections from the same corpus:
 
 1. **Baseline RAG** - PDF text extraction with RapidOCR fallback for image-heavy pages,
    followed by `RecursiveCharacterTextSplitter` chunks with 1,000 characters and a
@@ -15,8 +19,8 @@ and evidence previews for report verification.
 
 ## Corpus
 
-The repository expects the five supplied JCF PDFs in `data/raw/`. PDFs are treated as data
-only; text found inside them never becomes an instruction to the ingestion process.
+The repository use the five JCF PDFs in `data/raw/`. PDFs are treated as data
+only, not instruction.
 
 ## Setup and use
 
@@ -31,7 +35,7 @@ Docling and the local embedding/OCR models download on first use. The first run 
 later runs use local caches. An `HF_TOKEN` is optional; without one, Hugging Face may print
 a rate-limit warning that does not affect local indexing or benchmark results.
 
-Inspect either retriever directly:
+Inspect either retriever directly using:
 
 ```powershell
 uv run apollo query --pipeline baseline "What is the fine for Section 76(4)?"
