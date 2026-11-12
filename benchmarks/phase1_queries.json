@@ -1,0 +1,42 @@
+{
+  "cases": [
+    {
+      "id": "fine-comparison",
+      "question": "What is the fine amount and demerit point penalty for exceeding the speed limit in a school safety zone by 33-49 km/h under Section 76(4), and how does it compare to driving without a seatbelt under Section 72(4)?",
+      "expected_source": "JCF-Fines.pdf",
+      "evidence_groups": [
+        ["Exceeding Speed Limit In School Safety Zone 33 To 49 Kilometers Per Hour"],
+        ["20,000 6", "20 000 6", "35 FINE = $20,000. 35, POINTS = 6"],
+        ["Section 76(4)"],
+        ["Driving/Riding in a Motor Vehicle Without Seatbelt On", "Driver Failing to Cause Passenger To Wear Seatbelt"],
+        ["2,000 2", "2 000 2", "30 FINE = $2,000. 30, POINTS = 2", "18 FINE = $2,000. 18, POINTS = 2"],
+        ["Section 72(4)"]
+      ]
+    },
+    {
+      "id": "division-comparison",
+      "question": "Compare the 2025 and 2026 murder counts for St. James versus Westmoreland division. Which division recorded an increase and by what percentage?",
+      "expected_source": "JCF-Murder-Stats.pdf",
+      "evidence_groups": [
+        ["St. James 46 54 8 17.4", "St. James 2025 46 St. James MurderMurder 2026 54", "St. James Murder 2025 46 St. James Murder 2026 54"],
+        ["Westmoreland 33 23 -10 -30.3", "Westmoreland Murder 2025 33 Westmoreland Murder 2026 23"]
+      ]
+    },
+    {
+      "id": "wanted-murder",
+      "question": "List all individuals currently listed as wanted for Murder in the JCF registry, and state the official emergency tip line numbers provided for citizen reporting.",
+      "expected_source": "JCF-Wanted Persons.pdf",
+      "evidence_groups": [["dave edwards"], ["derrick johnson"], ["raheem brown"], ["jermaine richards"], ["christopher comrie"], ["derrick shaw"], ["samuel brown"], ["119"], ["311"], ["876 838 3589", "876-838-3589"]]
+    },
+    {
+      "id": "historic-counts",
+      "question": "What was the national murder total in Jamaica for the years 1980, 2005, and 2024 based on the JCF historical murder counts PDF?",
+      "expected_source": "JCF-Murder-Counts.pdf",
+      "evidence_groups": [
+        ["1980 889", "1980 MURDER 889"],
+        ["2005 1,674", "2005 MURDER 1,674", "2005 1674"],
+        ["2024 1,147", "2024 MURDER 1,147", "2024 1 1,147", "2024 1147"]
+      ]
+    }
+  ]
+}
