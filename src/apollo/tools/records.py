@@ -160,7 +160,8 @@ def rank_divisions_by_change(
         reverse=order == "largest_increase",
     )
     limit = max(1, min(limit, 20))
-    lines = [f"Divisions ranked by {order.replace('_', ' ')} in {category.replace('_', ' ')}:"]
+    lines = [f"Divisions ranked by {order.replace('_', ' ')} in {category.replace('_', ' ')} "
+        f"({DIVISION_STATS_PDF} page 1):"]
     lines += [
         f"{rank}. {d.division} - {_format_category(category, d)}"
         for rank, d in enumerate(divisions[:limit], start=1)
@@ -174,7 +175,8 @@ def get_national_murder_counts(years: list[int]) -> tuple[str, list[Citation]]:
     if not years:
         raise ValueError("Provide at least one year.")
     counts = _runtime.get_records().murder_counts
-    lines = [f"{year}: {counts[year]:,} murders" for year in years if year in counts]
+    lines = [f"National murder totals ({MURDER_COUNTS_PDF}):"]
+    lines += [f"{year}: {counts[year]:,} murders" for year in years if year in counts]
     missing = [str(year) for year in years if year not in counts]
     if missing:
         lines.append(f"No figure in {MURDER_COUNTS_PDF} for: {', '.join(missing)}")

@@ -1,0 +1,143 @@
+"""A conversation with the coordinator, including human review of paused actions.
+
+`ApolloSession` hides the LangGraph details (thread config, interrupts, Command resume)
+behind two calls that both the CLI and the Phase 3 UI use:
+
+  turn = session.ask("...")          # send a user message
+  if turn.awaiting_review:           # a high-risk action is paused
+      turn = session.review([approve(), ...])   # one decision per pending action
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from typing import Any
+
+from langchain_core.messages import AIMessage, ToolMessage
+from langgraph.types import Command
+
+from apollo.agents.coordinator import build_coordinator, thread_config
+from apollo.middleware import build_hitl_middleware
+
+Decision = dict[str, Any]
+
+
+def approve() -> Decision:
+    return {"type": "approve"}
+
+
+def edit(name: str, args: dict[str, Any]) -> Decision:
+    return {"type": "edit", "edited_action": {"name": name, "args": args}}
+
+
+def reject(message: str) -> Decision:
+    return {"type": "reject", "message": message}
+
+
+def respond(message: str) -> Decision:
+    return {"type": "respond", "message": message}
+
+
+@dataclass(frozen=True)
+class PendingAction:
+    """One tool call waiting for a reviewer's decision."""
+
+    name: str
+    args: dict[str, Any]
+    description: str
+    allowed_decisions: list[str]
+
+
+@dataclass
+class Turn:
+    """What happened in one step of the conversation, for display and telemetry."""
+
+    answer: str | None
+    pending: list[PendingAction] = field(default_factory=list)
+    tool_calls: list[str] = field(default_factory=list)
+    delegations: list[dict[str, Any]] = field(default_factory=list)
+    citations: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def awaiting_review(self) -> bool:
+        return bool(self.pending)
+
+
+def _pending_actions(result: dict[str, Any]) -> list[PendingAction]:
+    actions: list[PendingAction] = []
+    for interrupt in result.get("__interrupt__", ()):
+        request = interrupt.value
+        for action, config in zip(
+            request["action_requests"], request["review_configs"], strict=True
+        ):
+            actions.append(
+                PendingAction(
+                    name=action["name"],
+                    args=dict(action["args"]),
+                    description=action.get("description", ""),
+                    allowed_decisions=list(config["allowed_decisions"]),
+                )
+            )
+    return actions
+
+
+def _summarise(new_messages: list[Any], result: dict[str, Any]) -> Turn:
+    tool_calls: list[str] = []
+    delegations: list[dict[str, Any]] = []
+    citations: list[dict[str, Any]] = []
+    for message in new_messages:
+        if isinstance(message, AIMessage):
+            tool_calls += [call["name"] for call in message.tool_calls]
+        elif isinstance(message, ToolMessage):
+            artifact = message.artifact
+            found = []
+            if isinstance(artifact, dict) and "subagent" in artifact:
+                delegations.append(artifact)
+                found = artifact.get("citations", [])
+            elif isinstance(artifact, list):
+                found = artifact
+            citations += [c for c in found if c not in citations]
+    pending = _pending_actions(result)
+    last = new_messages[-1] if new_messages else None
+    # While paused, the last message is the model's tool request, not an answer.
+    answer = None if pending or not isinstance(last, AIMessage) else last.text
+    return Turn(answer, pending, tool_calls, delegations, citations)
+
+
+class ApolloSession:
+    def __init__(self, agent: Any | None = None, thread_id: str | None = None) -> None:
+        self.agent = agent or build_coordinator(middleware=[build_hitl_middleware()])
+        self.thread_id = thread_id or uuid.uuid4().hex
+        self.config = thread_config(self.thread_id)
+        self.pending: list[PendingAction] = []
+
+    def _message_count(self) -> int:
+        return len(self.agent.get_state(self.config).values.get("messages", []))
+
+    def _run(self, payload: Any) -> Turn:
+        before = self._message_count()
+        result = self.agent.invoke(payload, self.config)
+        turn = _summarise(result["messages"][before:], result)
+        self.pending = turn.pending
+        return turn
+
+    def ask(self, text: str) -> Turn:
+        if self.pending:
+            raise RuntimeError("Review the pending action(s) before sending a new message.")
+        if not text.strip():
+            raise ValueError("The message must not be empty.")
+        return self._run({"messages": [{"role": "user", "content": text}]})
+
+    def review(self, decisions: list[Decision]) -> Turn:
+        if not self.pending:
+            raise RuntimeError("There is nothing waiting for review.")
+        if len(decisions) != len(self.pending):
+            raise ValueError(
+                f"Expected {len(self.pending)} decision(s), one per pending action, "
+                f"in order; got {len(decisions)}."
+            )
+        for decision, action in zip(decisions, self.pending, strict=True):
+            if decision["type"] not in action.allowed_decisions:
+                raise ValueError(f"'{decision['type']}' is not allowed for {action.name}.")
+        return self._run(Command(resume={"decisions": decisions}))

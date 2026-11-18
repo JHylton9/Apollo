@@ -42,7 +42,7 @@ def _known_division(location: str) -> str:
 def issue_fine_notice(
     section: str,
     offence: str,
-    location: str,
+    location: str | None = None,
     driver_name: str | None = None,
     vehicle_plate: str | None = None,
 ) -> str:
@@ -74,7 +74,7 @@ def issue_fine_notice(
     )
     return (
         f"Notice {reference} issued: {best.offence} ({best.section}), fine ${best.fine:,}, "
-        f"{best.points} demerit points, at {location}."
+        f"{best.points} demerit points" + (f", at {location}." if location else ".")
     )
 
 

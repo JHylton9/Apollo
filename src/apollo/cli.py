@@ -14,7 +14,10 @@ from apollo.models import PipelineName, Settings
 from apollo.retrieval.store import VectorStore
 from apollo.text import pdf_files
 
-app = typer.Typer(no_args_is_help=True, help="Apollo JCF Phase 1 retrieval benchmark")
+app = typer.Typer(
+    no_args_is_help=True,
+    help="Apollo JCF assistant: ingestion, benchmark and agent chat",
+)
 console = Console()
 
 
@@ -116,6 +119,11 @@ def benchmark(top_k: Annotated[int, typer.Option(min=1, max=20)] = 5) -> None:
     console.print(table)
     console.print(f"Reports: {md_path}")
 
+@app.command()
+def chat() -> None:
+    """Chat with Apollo coordinator; high risk asctions pause for review"""
+    from apollo.agents.terminal import run_chat
+    run_chat(console)
 
 @app.command()
 def status() -> None:
