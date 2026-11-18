@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import chromadb
+from chromadb.api.types import Where
+from chromadb.errors import NotFoundError
 
 from apollo.models import Chunk, PipelineName, SearchHit
 
@@ -23,7 +25,7 @@ class VectorStore:
         # Recreate the selected collection so old chunks cannot leak into a benchmark.
         try:
             self.client.delete_collection(name)
-        except Exception:
+        except NotFoundError:
             pass
         collection = self.client.get_or_create_collection(
             name=name,
@@ -40,32 +42,64 @@ class VectorStore:
             )
         return collection.count()
 
-    def query(self, pipeline: PipelineName, query: str, top_k: int = 5) -> list[SearchHit]:
+    def query(
+        self,
+        pipeline: PipelineName,
+        query: str,
+        top_k: int = 5,
+        *,
+        sources: Sequence[str] | None = None,
+    ) -> list[SearchHit]:
+        if top_k < 1:
+            raise ValueError("top_k must be at least 1")
+
         collection = self.client.get_collection(COLLECTIONS[pipeline])
         count = collection.count()
         if count == 0:
             return []
+
+        where: Where | None = None
+        if sources:
+            where = (
+                {"source": sources[0]} if len(sources) == 1 else {"source": {"$in": list(sources)}}
+            )
         result = collection.query(
             query_texts=[query],
             n_results=min(top_k, count),
+            where=where,
             include=["documents", "metadatas", "distances"],
         )
-        documents = result["documents"][0]
-        metadatas = result["metadatas"][0]
-        distances = result["distances"][0]
+
+        documents_by_query = result["documents"]
+        metadatas_by_query = result["metadatas"]
+        distances_by_query = result["distances"]
+        if not documents_by_query or not metadatas_by_query or not distances_by_query:
+            raise RuntimeError("Chroma returned incomplete query results")
+
+        documents = documents_by_query[0]
+        metadatas = metadatas_by_query[0]
+        distances = distances_by_query[0]
+        if documents is None or metadatas is None or distances is None:
+            raise RuntimeError("Chroma returned incomplete query results")
+
         # Cosine distance is converted to a more readable similarity score.
-        return [
-            SearchHit(
-                text=document,
-                score=max(0.0, 1.0 - float(distance)),
-                source=str(metadata.get("source", "unknown")),
-                page=int(metadata["page"]) if "page" in metadata else None,
+        hits = []
+        for document, metadata, distance in zip(documents, metadatas, distances, strict=True):
+            if metadata is None:
+                raise RuntimeError("Chroma returned a result without metadata")
+            page = metadata.get("page")
+            hits.append(
+                SearchHit(
+                    text=document,
+                    score=max(0.0, 1.0 - float(distance)),
+                    source=str(metadata.get("source") or "unknown"),
+                    page=int(page) if isinstance(page, (int, float)) else None,
+                )
             )
-            for document, metadata, distance in zip(documents, metadatas, distances, strict=True)
-        ]
+        return hits
 
     def count(self, pipeline: PipelineName) -> int:
         try:
             return self.client.get_collection(COLLECTIONS[pipeline]).count()
-        except Exception:
+        except NotFoundError:
             return 0
