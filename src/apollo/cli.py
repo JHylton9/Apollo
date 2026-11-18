@@ -8,10 +8,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from apollo.benchmark import evaluate, load_cases, markdown_report
+from apollo.evaluation.benchmark import evaluate, load_cases, markdown_report
+from apollo.ingestion import BaselinePipeline, DoclingPipeline
 from apollo.models import PipelineName, Settings
-from apollo.pipelines import BaselinePipeline, DoclingPipeline
-from apollo.store import VectorStore
+from apollo.retrieval.store import VectorStore
 from apollo.text import pdf_files
 
 app = typer.Typer(no_args_is_help=True, help="Apollo JCF Phase 1 retrieval benchmark")
@@ -97,8 +97,8 @@ def benchmark(top_k: Annotated[int, typer.Option(min=1, max=20)] = 5) -> None:
             raise typer.BadParameter(f"{pipeline} collection is empty; run `apollo ingest` first")
     report = evaluate(store, load_cases(settings.benchmark_file), top_k=top_k)
     # Save a detailed audit trail alongside the console summary.
-    json_path = settings.reports_dir / "phase1_benchmark.json"
-    md_path = settings.reports_dir / "phase1_benchmark.md"
+    json_path = settings.reports_dir / "phase1" / "benchmark.json"
+    md_path = settings.reports_dir / "phase1" / "benchmark.md"
     json_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     md_path.write_text(markdown_report(report), encoding="utf-8")
 

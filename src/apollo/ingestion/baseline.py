@@ -6,8 +6,8 @@ import pymupdf
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
+from apollo.ingestion.ocr import PageOCR
 from apollo.models import Chunk
-from apollo.ocr import PageOCR
 from apollo.text import clean_text, stable_id
 
 

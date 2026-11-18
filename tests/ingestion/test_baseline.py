@@ -1,4 +1,4 @@
-from apollo.pipelines.baseline import BaselinePipeline
+from apollo.ingestion.baseline import BaselinePipeline
 
 
 def test_ocr_is_only_preferred_when_it_adds_content() -> None:

@@ -46,8 +46,8 @@ Generated artifacts are separated from raw data:
 
 - `data/chroma/` - persistent Chroma database
 - `data/processed/docling/` - layout-aware Markdown and lossless Docling JSON
-- `reports/phase1_benchmark.json` - metrics and ranked evidence
-- `reports/phase1_benchmark.md` - comparison table and audit trail
+- `reports/phase1/benchmark.json` - metrics and ranked evidence
+- `reports/phase1/benchmark.md` - comparison table and audit trail
 
 ## Quality checks
 
@@ -62,3 +62,28 @@ uv run ruff check .
 - Collections are rebuilt per pipeline to avoid stale duplicate chunks.
 - Both collections use the same embedding function for a fair comparison.
 - The benchmark does not call an LLM, so it cannot conceal a retrieval failure.
+
+## Repository layout
+
+Code is organised by responsibility, and course deliverables are organised by phase.
+
+```text
+Apollo/
+├── src/apollo/
+│   ├── cli.py                 # `apollo` command (ingest, query, benchmark, status)
+│   ├── models.py              # shared dataclasses and Settings (paths)
+│   ├── text.py                # shared text utilities
+│   ├── ingestion/             # Phase 1: baseline OCR/text + Docling pipelines
+│   ├── retrieval/             # Phase 1-2: Chroma vector store / retrievers
+│   ├── evaluation/            # Phase 1 benchmark (Phase 2 agent tests go here too)
+│   ├── tools/                 # Phase 2: @tool wrappers (search, lookup, actions)
+│   ├── agents/                # Phase 2: coordinator graph (create_agent)
+│   │   └── subagents/         # Phase 2: traffic fine + crime stats specialists
+│   ├── middleware/            # Phase 2: PII, retry, tool-error, limits, HITL
+│   └── ui/                    # Phase 3: dashboard (chat, HITL panel, telemetry)
+├── tests/                     # mirrors src/apollo (core/, ingestion/, evaluation/)
+├── benchmarks/                # benchmark query sets (inputs)
+├── data/raw/                  # JCF source PDFs (chroma/ and processed/ are generated)
+├── reports/phase1/            # generated benchmark outputs
+└── docs/phase1 … phase6/      # written deliverables per course phase
+```

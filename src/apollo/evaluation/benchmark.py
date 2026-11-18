@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from apollo.models import BenchmarkCase, PipelineName
-from apollo.store import VectorStore
+from apollo.retrieval.store import VectorStore
 from apollo.text import normalized
 
 
