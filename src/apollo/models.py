@@ -57,6 +57,7 @@ class Settings:
     chroma_dir: Path
     reports_dir: Path
     benchmark_file: Path
+    actions_dir: Path
     chunk_size: int = 1000
     chunk_overlap: int = 200
 
@@ -69,4 +70,5 @@ class Settings:
             chroma_dir=resolved / "data" / "chroma",
             reports_dir=resolved / "reports",
             benchmark_file=resolved / "benchmarks" / "phase1_queries.json",
+            actions_dir=resolved /"data" / "actions",
         )

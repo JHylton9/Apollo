@@ -19,3 +19,4 @@ build/
 .env
 data/chroma/
 data/processed/
+data/actions/
