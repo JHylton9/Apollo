@@ -76,8 +76,7 @@ def evaluate(
         report["pipelines"][pipeline] = {
             "chunk_count": store.count(pipeline),
             "source_hit_rate": sum(row["source_hit"] for row in rows) / max(len(rows), 1),
-            "mean_reciprocal_rank": sum(row["reciprocal_rank"] for row in rows)
-            / max(len(rows), 1),
+            "mean_reciprocal_rank": sum(row["reciprocal_rank"] for row in rows) / max(len(rows), 1),
             "mean_evidence_coverage": sum(row["evidence_coverage"] for row in rows)
             / max(len(rows), 1),
             "cases": rows,
@@ -155,8 +154,7 @@ def markdown_report(report: dict[str, Any]) -> str:
                 page = f", p. {hit['page']}" if hit["page"] else ""
                 preview = " ".join(hit["preview"].split())
                 lines.append(
-                    f"  {hit['rank']}. `{hit['source']}{page}` score={hit['score']:.4f} - "
-                    f"{preview}"
+                    f"  {hit['rank']}. `{hit['source']}{page}` score={hit['score']:.4f} - {preview}"
                 )
     lines.append("")
     return "\n".join(lines)

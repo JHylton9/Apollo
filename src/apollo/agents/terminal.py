@@ -86,6 +86,21 @@ def _show_turn(console: Console, turn: Turn) -> None:
             f"(tools: {', '.join(delegation['tool_calls']) or 'none'}; "
             f"{delegation['quarantined_messages']} messages kept out of the coordinator)"
         )
+    for event in turn.middleware_events:
+        if event["middleware"] == "PII":
+            kinds = ", ".join(kind.upper() for kind in event["redacted"])
+            console.print(f"[magenta]◆ PII[/] redacted before the model or history saw it: {kinds}")
+            continue
+        if event["middleware"] == "HumanInTheLoopMiddleware":
+            console.print(
+                f"[magenta]◆ HITL[/] officer decision on {event['tool']}: {event['decision']}"
+            )
+            continue
+        where = f" inside {event['subagent']}" if event.get("subagent") else ""
+        console.print(
+            f"[magenta]◆ {event['middleware']}[/] handled an error from "
+            f"{event['tool']}{where}; the model received feedback instead of a crash"
+        )
     if turn.answer:
         # Text() shows the answer literally, so brackets in it are not read as Rich markup.
         console.print(Panel(Text(turn.answer), title="Apollo", border_style="green"))

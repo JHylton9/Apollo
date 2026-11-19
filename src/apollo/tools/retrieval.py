@@ -16,6 +16,7 @@ MISSING_PDF = "JCF-Missing Persons.pdf"
 
 Citation = dict[str, Any]
 
+
 def _search(query: str, sources: list[str], top_k: int = 5) -> tuple[str, list[Citation]]:
     """Run a filtered search and return (text for the model, citations for the UI)."""
     if not query.strip():
@@ -41,7 +42,8 @@ def _search(query: str, sources: list[str], top_k: int = 5) -> tuple[str, list[C
         )
     return "\n\n".join(blocks), citations
 
-#Define strings for tools uing few shot technique
+
+# Define strings for tools uing few shot technique
 @tool(response_format="content_and_artifact")
 def search_traffic_fines(query: str) -> tuple[str, list[Citation]]:
     """Search the official JCF traffic violation fine schedule.
@@ -52,6 +54,7 @@ def search_traffic_fines(query: str) -> tuple[str, list[Citation]]:
     """
     return _search(query, [FINES_PDF])
 
+
 @tool(response_format="content_and_artifact")
 def search_division_crime_stats(query: str) -> tuple[str, list[Citation]]:
     """Search the JCF divisional crime statistics table comparing 2025 and 2026.
@@ -61,22 +64,26 @@ def search_division_crime_stats(query: str) -> tuple[str, list[Citation]]:
     """
     return _search(query, [DIVISION_STATS_PDF])
 
+
 @tool(response_format="content_and_artifact")
 def search_wanted_persons(query: str) -> tuple[str, list[Citation]]:
     """Search the JCF wanted persons registry: names, offences and citizen tip-line numbers."""
     return _search(query, [WANTED_PDF])
+
 
 @tool(response_format="content_and_artifact")
 def search_missing_persons(query: str) -> tuple[str, list[Citation]]:
     """Search the JCF missing persons alerts: names, descriptions and last-seen details."""
     return _search(query, [MISSING_PDF])
 
+
 @tool(response_format="content_and_artifact")
 def search_historical_murders(query: str) -> tuple[str, list[Citation]]:
     """Search the JCF historical national murder counts for Jamaica by year (1962 onward)."""
     return _search(query, [HISTORICAL_MURDERS_PDF])
 
-#Defining a list the list of tools
+
+# Defining a list the list of tools
 RETRIEVAL_TOOLS = [
     search_traffic_fines,
     search_division_crime_stats,

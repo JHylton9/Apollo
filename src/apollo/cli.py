@@ -49,7 +49,6 @@ def ingest(
     store = VectorStore(settings.chroma_dir)
     selected = ("baseline", "docling") if pipeline == "all" else (pipeline,)
     for name in selected:
-        
         # Build each collection from the complete, identical PDF set.
         chunks = []
         if name == "baseline":
@@ -119,11 +118,14 @@ def benchmark(top_k: Annotated[int, typer.Option(min=1, max=20)] = 5) -> None:
     console.print(table)
     console.print(f"Reports: {md_path}")
 
+
 @app.command()
 def chat() -> None:
     """Chat with Apollo coordinator; high risk asctions pause for review"""
     from apollo.agents.terminal import run_chat
+
     run_chat(console)
+
 
 @app.command()
 def status() -> None:

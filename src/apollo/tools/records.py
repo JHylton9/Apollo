@@ -24,6 +24,7 @@ Citation = dict[str, Any]
 # A section looks like "20(4)", "54(4)(a)(ii)" or "123" once "Section"/"Regulation" is removed.
 _SECTION_SHAPE = re.compile(r"^\d+[a-z]?(\([0-9a-z]+\))*$")
 _WORD = re.compile(r"[a-z0-9]+")
+_ORDINALS = {1: "first", 2: "second", 3: "third", 4: "fourth"}
 
 
 def _cite(source: str, page: int | None) -> Citation:
@@ -35,8 +36,13 @@ def _format_fine(record: FineRecord) -> str:
         f"No. {record.number} | {record.offence} | fine ${record.fine:,} | "
         f"{record.points} demerit points | {record.section} | {FINES_PDF} page {record.page}"
     )
-    if record.merged:
-        line += " | note: Docling merged this row with its neighbour; offence text covers both"
+    if record.merged_position:
+        entry, total = record.merged_position
+        # Columns were split in order, so entry N is the N-th offence named in the text.
+        line += (
+            f" | note: Docling merged {total} schedule rows into one; this is entry {entry} of"
+            f" {total}, so it is the offence named {_ORDINALS[entry]} in the combined text"
+        )
     return line
 
 
@@ -160,8 +166,10 @@ def rank_divisions_by_change(
         reverse=order == "largest_increase",
     )
     limit = max(1, min(limit, 20))
-    lines = [f"Divisions ranked by {order.replace('_', ' ')} in {category.replace('_', ' ')} "
-        f"({DIVISION_STATS_PDF} page 1):"]
+    lines = [
+        f"Divisions ranked by {order.replace('_', ' ')} in {category.replace('_', ' ')} "
+        f"({DIVISION_STATS_PDF} page 1):"
+    ]
     lines += [
         f"{rank}. {d.division} - {_format_category(category, d)}"
         for rank, d in enumerate(divisions[:limit], start=1)

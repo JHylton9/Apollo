@@ -6,6 +6,7 @@ from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 
 from apollo.llm import get_chat_model
+from apollo.middleware import specialist_middleware
 from apollo.tools import CRIME_STATS_TOOLS, TRAFFIC_TOOLS
 
 # Rules shared by both specialists: exact figures only, always cited.
@@ -54,6 +55,7 @@ def build_traffic_specialist(model: BaseChatModel | None = None):
         model or get_chat_model(),
         tools=TRAFFIC_TOOLS,
         system_prompt=TRAFFIC_SPECIALIST_PROMPT,
+        middleware=specialist_middleware(),
         name="traffic_fine_specialist",
     )
 
@@ -63,5 +65,6 @@ def build_crime_analyst(model: BaseChatModel | None = None):
         model or get_chat_model(),
         tools=CRIME_STATS_TOOLS,
         system_prompt=CRIME_ANALYST_PROMPT,
+        middleware=specialist_middleware(),
         name="crime_statistics_analyst",
     )

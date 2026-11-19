@@ -1,12 +1,4 @@
-"""A conversation with the coordinator, including human review of paused actions.
-
-`ApolloSession` hides the LangGraph details (thread config, interrupts, Command resume)
-behind two calls that both the CLI and the Phase 3 UI use:
-
-  turn = session.ask("...")          # send a user message
-  if turn.awaiting_review:           # a high-risk action is paused
-      turn = session.review([approve(), ...])   # one decision per pending action
-"""
+"""A conversation with the coordinator, including human review of paused actions."""
 
 from __future__ import annotations
 
@@ -18,7 +10,8 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
 from apollo.agents.coordinator import build_coordinator, thread_config
-from apollo.middleware import build_hitl_middleware
+from apollo.middleware import coordinator_middleware, redact_text
+from apollo.middleware.errors import is_handled_tool_error
 
 Decision = dict[str, Any]
 
@@ -58,6 +51,7 @@ class Turn:
     tool_calls: list[str] = field(default_factory=list)
     delegations: list[dict[str, Any]] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
+    middleware_events: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def awaiting_review(self) -> bool:
@@ -86,14 +80,18 @@ def _summarise(new_messages: list[Any], result: dict[str, Any]) -> Turn:
     tool_calls: list[str] = []
     delegations: list[dict[str, Any]] = []
     citations: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
     for message in new_messages:
         if isinstance(message, AIMessage):
             tool_calls += [call["name"] for call in message.tool_calls]
         elif isinstance(message, ToolMessage):
+            if is_handled_tool_error(message):
+                events.append({"middleware": "ToolErrorMiddleware", "tool": message.name})
             artifact = message.artifact
             found = []
             if isinstance(artifact, dict) and "subagent" in artifact:
                 delegations.append(artifact)
+                events += artifact.get("middleware_events", [])
                 found = artifact.get("citations", [])
             elif isinstance(artifact, list):
                 found = artifact
@@ -102,15 +100,15 @@ def _summarise(new_messages: list[Any], result: dict[str, Any]) -> Turn:
     last = new_messages[-1] if new_messages else None
     # While paused, the last message is the model's tool request, not an answer.
     answer = None if pending or not isinstance(last, AIMessage) else last.text
-    return Turn(answer, pending, tool_calls, delegations, citations)
+    return Turn(answer, pending, tool_calls, delegations, citations, events)
 
 
 class ApolloSession:
     def __init__(self, agent: Any | None = None, thread_id: str | None = None) -> None:
-        self.agent = agent or build_coordinator(middleware=[build_hitl_middleware()])
         self.thread_id = thread_id or uuid.uuid4().hex
         self.config = thread_config(self.thread_id)
         self.pending: list[PendingAction] = []
+        self.agent = agent or build_coordinator(middleware=coordinator_middleware())
 
     def _message_count(self) -> int:
         return len(self.agent.get_state(self.config).values.get("messages", []))
@@ -127,7 +125,11 @@ class ApolloSession:
             raise RuntimeError("Review the pending action(s) before sending a new message.")
         if not text.strip():
             raise ValueError("The message must not be empty.")
-        return self._run({"messages": [{"role": "user", "content": text}]})
+        text, redacted = redact_text(text)
+        turn = self._run({"messages": [{"role": "user", "content": text}]})
+        if redacted:
+            turn.middleware_events.insert(0, {"middleware": "PII", "redacted": redacted})
+        return turn
 
     def review(self, decisions: list[Decision]) -> Turn:
         if not self.pending:
@@ -140,4 +142,10 @@ class ApolloSession:
         for decision, action in zip(decisions, self.pending, strict=True):
             if decision["type"] not in action.allowed_decisions:
                 raise ValueError(f"'{decision['type']}' is not allowed for {action.name}.")
-        return self._run(Command(resume={"decisions": decisions}))
+        reviewed = [
+            {"middleware": "HumanInTheLoopMiddleware", "tool": a.name, "decision": d["type"]}
+            for a, d in zip(self.pending, decisions, strict=True)
+        ]
+        turn = self._run(Command(resume={"decisions": decisions}))
+        turn.middleware_events[:0] = reviewed
+        return turn

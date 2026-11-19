@@ -69,6 +69,7 @@ def test_coordinator_owns_registry_and_action_tools() -> None:
     assert {"search_wanted_persons", "issue_fine_notice", "log_sighting_report"} <= names
     assert "lookup_traffic_fine" not in names  # traffic lookups go through the specialist
 
+
 def test_prompt_explains_every_review_outcome() -> None:
     from apollo.agents.coordinator import COORDINATOR_PROMPT
 

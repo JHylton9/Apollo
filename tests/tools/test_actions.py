@@ -38,10 +38,12 @@ def test_fine_notice_uses_the_official_amount(fake_runtime) -> None:
     entry = _log(fake_runtime, "fine_notices")[0]
     assert entry["fine"] == 10000 and entry["reference"].startswith("FN-")
 
+
 def test_notice_without_location_records_none(fake_runtime) -> None:
     result = actions.issue_fine_notice.invoke({"section": "52(2)(a)", "offence": "stop sign"})
     assert result.endswith("6 demerit points.")
     assert _log(fake_runtime, "fine_notices")[0]["location"] is None
+
 
 def test_unknown_section_issues_nothing(fake_runtime) -> None:
     with pytest.raises(ValueError):

@@ -27,7 +27,8 @@ class FineRecord:
     points: int
     section: str
     page: int | None
-    merged: bool = False  # Docling put this row in the same cells as its neighbour
+    merged: bool = False
+    merged_position: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +117,7 @@ def _split_fine_row(row: list[str], page: int | None) -> list[FineRecord] | None
             section=sections[i],
             page=page,
             merged=count > 1,
+            merged_position=(i + 1, count) if count > 1 else None,
         )
         for i in range(count)
     ]

@@ -70,5 +70,5 @@ class Settings:
             chroma_dir=resolved / "data" / "chroma",
             reports_dir=resolved / "reports",
             benchmark_file=resolved / "benchmarks" / "phase1_queries.json",
-            actions_dir=resolved /"data" / "actions",
+            actions_dir=resolved / "data" / "actions",
         )

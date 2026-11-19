@@ -23,10 +23,12 @@ def get_store() -> VectorStore:
     # One Chroma client per process; opening it on every tool call would be slow.
     return VectorStore(get_settings().chroma_dir)
 
+
 @lru_cache(maxsize=1)
 def get_records() -> RecordStore:
     # Structured tables come from the Docling output saved during Phase 1 ingestion
     return RecordStore(get_settings().processed_dir / "docling")
+
 
 def active_pipeline() -> PipelineName:
     # Docling is the default because Phase 1 showed it preserves table structure.

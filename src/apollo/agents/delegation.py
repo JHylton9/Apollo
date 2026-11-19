@@ -9,6 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 
 from apollo.agents.subagents import build_crime_analyst, build_traffic_specialist
+from apollo.middleware.errors import is_handled_tool_error
 
 
 def _telemetry(agent_name: str, messages: list[Any]) -> dict[str, Any]:
@@ -17,6 +18,11 @@ def _telemetry(agent_name: str, messages: list[Any]) -> dict[str, Any]:
         call["name"] for m in messages if isinstance(m, AIMessage) for call in m.tool_calls
     ]
     citations: list[dict[str, Any]] = []
+    events = [
+        {"middleware": "ToolErrorMiddleware", "tool": m.name, "subagent": agent_name}
+        for m in messages
+        if is_handled_tool_error(m)
+    ]
     for message in messages:
         if isinstance(message, ToolMessage) and isinstance(message.artifact, list):
             for citation in message.artifact:
@@ -28,6 +34,7 @@ def _telemetry(agent_name: str, messages: list[Any]) -> dict[str, Any]:
         "quarantined_messages": len(messages) - 1,  # everything except the final answer
         "quarantined_chars": sum(len(str(m.content)) for m in messages[:-1]),
         "citations": citations,
+        "middleware_events": events,
     }
 
 

@@ -83,3 +83,17 @@ def test_calculator_is_exact_and_safe() -> None:
     assert records.calculate.invoke({"expression": "40,000 + 10,000"}).endswith("= 50,000")
     with pytest.raises(ValueError):
         records.calculate.invoke({"expression": "__import__('os').system('ls')"})
+
+
+def test_merged_rows_say_which_offence_they_are(monkeypatch) -> None:
+    text = "No Valid Certificate Of Fitness No Warning Devices"
+    merged = [
+        FineRecord(88, text, 15000, 0, "Section 7(3)", 2, True, (1, 2)),
+        FineRecord(89, text, 5000, 2, "Section 71(2)(f)", 2, True, (2, 2)),
+    ]
+    store = SimpleNamespace(fines=merged, divisions=[], murder_counts={})
+    monkeypatch.setattr(_runtime, "get_records", lambda: store)
+    lines = _content(records.lookup_traffic_fine, {"offence": "certificate of fitness"})
+    first, second = lines.splitlines()
+    assert "Section 7(3)" in first and "entry 1 of 2" in first and "named first" in first
+    assert "Section 71(2)(f)" in second and "named second" in second

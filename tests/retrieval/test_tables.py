@@ -36,6 +36,7 @@ def test_merged_fine_rows_are_split() -> None:
     assert (first.number, first.fine, first.points, first.section) == (88, 15000, 0, "Section 7(3)")
     assert (second.number, second.fine, second.section) == (89, 5000, "Section 71(2)(f)")
     assert first.merged and second.merged
+    assert (first.merged_position, second.merged_position) == ((1, 2), (2, 2))
 
 
 def test_ambiguous_fine_rows_are_rejected() -> None:
@@ -52,7 +53,13 @@ def test_change_is_validated_and_swapped_cells_repaired() -> None:
 
 
 def test_division_row_keeps_only_verified_categories() -> None:
-    tokens: list[str] = [str(token) for token in "16 9 -7 -43.8% 14 10 -4 -28.6% 7 4 19 12 -7 -36.8% 7 11 4 57.1% 46 -195 60 836 14 30.4% 102 102 0 0.0%".split()]  # noqa: E501
+    tokens: list[str] = [
+        str(token)
+        for token in (
+            "16 9 -7 -43.8% 14 10 -4 -28.6% 7 4 19 12 -7 -36.8% "
+            "7 11 4 57.1% 46 -195 60 836 14 30.4% 102 102 0 0.0%"
+        ).split()
+    ]
     found, missing = _parse_division_row(tokens)
     assert found["murder"] == CategoryChange(16, 9)
     assert found["grand_total"] == CategoryChange(102, 102)
@@ -77,11 +84,14 @@ def test_spec_figures_from_real_docling_output() -> None:
     assert store.murder_counts[2024] == 1147
 
 
-
 def test_unvalidated_pair_is_not_trusted() -> None:
-    # Real St. Ann row: Docling dropped the "20" of persons injured (true values 20 -> 11),
-    # so the pair cannot be aligned with the rape figures and must not be reported.
-    tokens: list[str] = [str(token) for token in "50 33 -17 -34.0% 30 13 -17 -56.7% 11 17 15 -2 -11.8% 52 28 0.0% 24 -24 -46.2% 68 80 12 17.6% 217 169 -48 -22.1%".split()]  # noqa: E501
+    tokens: list[str] = [
+        str(token)
+        for token in (
+            "50 33 -17 -34.0% 30 13 -17 -56.7% 11 17 15 -2 -11.8% "
+            "52 28 0.0% 24 -24 -46.2% 68 80 12 17.6% 217 169 -48 -22.1%"
+        ).split()
+    ]
     found, missing = _parse_division_row(tokens)
     assert "persons_injured" in missing
     assert found["rape"] == CategoryChange(17, 15)

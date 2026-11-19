@@ -77,6 +77,14 @@ def test_two_actions_pause_together_and_resume_in_order(fake_runtime) -> None:
     assert (fake_runtime / "fine_notices.jsonl").exists()
     assert not (fake_runtime / "outbox.jsonl").exists()
     assert session.pending == []
+    assert turn.middleware_events == [
+        {
+            "middleware": "HumanInTheLoopMiddleware",
+            "tool": "issue_fine_notice",
+            "decision": "approve",
+        },
+        {"middleware": "HumanInTheLoopMiddleware", "tool": "notify_email", "decision": "reject"},
+    ]
 
 
 def test_edit_decision_changes_what_is_recorded(fake_runtime) -> None:

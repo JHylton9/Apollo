@@ -23,9 +23,12 @@ def build_hitl_middleware() -> HumanInTheLoopMiddleware:
         # Fail at start-up rather than let a new high-risk tool run unreviewed.
         raise RuntimeError(f"No review configuration for high-risk tools: {sorted(missing)}")
     return HumanInTheLoopMiddleware(
-        interrupt_on=cast(Any, {
-            name: {"allowed_decisions": ALL_DECISIONS, "description": REVIEW_DESCRIPTIONS[name]}
-            for name in sorted(HIGH_RISK_TOOL_NAMES)
-        }),
+        interrupt_on=cast(
+            Any,
+            {
+                name: {"allowed_decisions": ALL_DECISIONS, "description": REVIEW_DESCRIPTIONS[name]}
+                for name in sorted(HIGH_RISK_TOOL_NAMES)
+            },
+        ),
         description_prefix="Officer review required",
     )
