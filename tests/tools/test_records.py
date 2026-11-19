@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from apollo.retrieval.registry import WantedPerson
 from apollo.retrieval.tables import CategoryChange, DivisionStats, FineRecord
 from apollo.tools import _runtime, records
 
@@ -97,3 +98,21 @@ def test_merged_rows_say_which_offence_they_are(monkeypatch) -> None:
     first, second = lines.splitlines()
     assert "Section 7(3)" in first and "entry 1 of 2" in first and "named first" in first
     assert "Section 71(2)(f)" in second and "named second" in second
+
+
+def test_wanted_list_filters_by_exact_offence(monkeypatch) -> None:
+    registry = SimpleNamespace(
+        wanted=[
+            WantedPerson("Dave Edwards", "Murder", [], [1]),
+            WantedPerson("Jevaughn Campbell", "Murder and Wounding with Intent", [], [3]),
+            WantedPerson("Conroy Robinson", "Attempted Murder", [], [3]),
+            WantedPerson("Leroy Gray", "Assault at Common Law", [], [1]),
+        ],
+        tip_lines={"Police Emergency": "119", "Tip Line": "876-838-3589"},
+    )
+    monkeypatch.setattr(_runtime, "get_registry", lambda: registry)
+    text = _content(records.list_wanted_persons, {"offence": "murder"})
+    assert "2 people wanted for murder" in text
+    assert "Dave Edwards" in text and "Jevaughn Campbell" in text
+    assert "Conroy Robinson" not in text and "Leroy Gray" not in text
+    assert "Police Emergency 119" in text and "Tip Line 876-838-3589" in text

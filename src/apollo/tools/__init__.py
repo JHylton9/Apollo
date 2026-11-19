@@ -8,6 +8,7 @@ from apollo.tools.records import (
     calculate,
     get_division_crime_stats,
     get_national_murder_counts,
+    list_wanted_persons,
     lookup_traffic_fine,
     rank_divisions_by_change,
 )
@@ -28,7 +29,7 @@ CRIME_STATS_TOOLS = [
     search_historical_murders,
     calculate,
 ]
-REGISTRY_TOOLS = [search_wanted_persons, search_missing_persons]
+REGISTRY_TOOLS = [list_wanted_persons, search_wanted_persons, search_missing_persons]
 
 __all__ = [
     "ACTION_TOOLS",

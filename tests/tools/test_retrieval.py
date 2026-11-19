@@ -52,3 +52,19 @@ def test_no_hits_returns_readable_message(monkeypatch) -> None:
 def test_empty_query_is_rejected() -> None:
     with pytest.raises(ValueError):
         retrieval.search_traffic_fines.invoke({"query": "   "})
+
+
+def test_missing_persons_use_baseline_ocr(monkeypatch) -> None:
+    store = FakeStore([])
+    monkeypatch.setattr(_runtime, "get_store", lambda: store)
+    monkeypatch.delenv("APOLLO_RETRIEVER", raising=False)
+    _call(retrieval.search_missing_persons, "Tiana Williams")
+    assert store.calls[0]["pipeline"] == "baseline"
+
+
+def test_environment_can_force_one_pipeline(monkeypatch) -> None:
+    store = FakeStore([])
+    monkeypatch.setattr(_runtime, "get_store", lambda: store)
+    monkeypatch.setenv("APOLLO_RETRIEVER", "docling")
+    _call(retrieval.search_missing_persons, "Tiana Williams")
+    assert store.calls[0]["pipeline"] == "docling"

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from apollo.models import PipelineName, Settings
 from apollo.retrieval import VectorStore
+from apollo.retrieval.registry import RegistryStore
 from apollo.retrieval.tables import RecordStore
 
 
@@ -30,9 +31,19 @@ def get_records() -> RecordStore:
     return RecordStore(get_settings().processed_dir / "docling")
 
 
-def active_pipeline() -> PipelineName:
-    # Docling is the default because Phase 1 showed it preserves table structure.
-    value = os.getenv("APOLLO_RETRIEVER", "docling")
+@lru_cache(maxsize=1)
+def get_registry() -> RegistryStore:
+    return RegistryStore(get_settings().processed_dir / "docling")
+
+
+def active_pipeline(default: PipelineName = "docling") -> PipelineName:
+    """The collection a search tool uses.
+
+    Each tool passes the pipeline that measurably works for its document (Phase 1
+    benchmark): Docling for tables, baseline OCR for image-only posters. Setting
+    APOLLO_RETRIEVER forces every tool onto one pipeline, for side-by-side demos.
+    """
+    value = os.getenv("APOLLO_RETRIEVER", default)
     if value not in ("baseline", "docling"):
         raise ValueError(f"APOLLO_RETRIEVER must be 'baseline' or 'docling', not {value!r}")
     return value  # type: ignore[return-value]

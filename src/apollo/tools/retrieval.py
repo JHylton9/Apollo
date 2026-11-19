@@ -6,6 +6,7 @@ from typing import Any
 
 from langchain.tools import tool
 
+from apollo.models import PipelineName
 from apollo.tools import _runtime
 
 FINES_PDF = "JCF-Fines.pdf"
@@ -17,11 +18,13 @@ MISSING_PDF = "JCF-Missing Persons.pdf"
 Citation = dict[str, Any]
 
 
-def _search(query: str, sources: list[str], top_k: int = 5) -> tuple[str, list[Citation]]:
+def _search(
+    query: str, sources: list[str], top_k: int = 5, pipeline: PipelineName = "docling"
+) -> tuple[str, list[Citation]]:
     """Run a filtered search and return (text for the model, citations for the UI)."""
     if not query.strip():
         raise ValueError("The search query must not be empty.")
-    pipeline = _runtime.active_pipeline()
+    pipeline = _runtime.active_pipeline(pipeline)
     hits = _runtime.get_store().query(pipeline, query, top_k=top_k, sources=sources)
     if not hits:
         return f"No matching records were found in {', '.join(sources)}.", []
@@ -73,8 +76,12 @@ def search_wanted_persons(query: str) -> tuple[str, list[Citation]]:
 
 @tool(response_format="content_and_artifact")
 def search_missing_persons(query: str) -> tuple[str, list[Citation]]:
-    """Search the JCF missing persons alerts: names, descriptions and last-seen details."""
-    return _search(query, [MISSING_PDF])
+    """Search the JCF missing persons alerts: names, ages, descriptions, last-seen details
+    and the police station to contact.
+    """
+    # The alerts are image-only posters. Docling's default conversion kept none of their
+    # text, while the baseline pipeline's OCR read them, so this tool uses baseline.
+    return _search(query, [MISSING_PDF], top_k=6, pipeline="baseline")
 
 
 @tool(response_format="content_and_artifact")

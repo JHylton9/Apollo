@@ -15,6 +15,7 @@ from apollo.tools import _runtime
 FINES_PDF = "JCF-Fines.pdf"
 DIVISION_STATS_PDF = "JCF-Murder-Stats.pdf"
 MURDER_COUNTS_PDF = "JCF-Murder-Counts.pdf"
+WANTED_PDF = "JCF-Wanted Persons.pdf"
 
 Category = Literal[
     "murder", "shooting", "persons_injured", "rape", "robbery", "break_in", "grand_total"
@@ -191,6 +192,37 @@ def get_national_murder_counts(years: list[int]) -> tuple[str, list[Citation]]:
     return "\n".join(lines), [_cite(MURDER_COUNTS_PDF, None)]
 
 
+@tool(response_format="content_and_artifact")
+def list_wanted_persons(offence: str | None = None) -> tuple[str, list[Citation]]:
+    """List people in the JCF wanted persons registry, with aliases and offences, plus the
+    official citizen tip-line numbers.
+
+    Pass an offence such as "Murder" to filter. "Murder" includes people wanted for murder
+    together with another offence, but not "Attempted Murder", which is a separate offence.
+    """
+    registry = _runtime.get_registry()
+    people = registry.wanted
+    if offence:
+        wanted = " ".join(_WORD.findall(offence.casefold()))
+        people = [
+            p
+            for p in people
+            if " ".join(_WORD.findall(p.offence.casefold())) == wanted
+            or " ".join(_WORD.findall(p.offence.casefold())).startswith(wanted + " and ")
+        ]
+    label = f"wanted for {offence}" if offence else "in the wanted persons registry"
+    lines = [f"{len(people)} people {label} ({WANTED_PDF}):"]
+    for person in people:
+        alias = f" (also called {', '.join(person.aliases)})" if person.aliases else ""
+        pages = ", ".join(str(page) for page in person.pages)
+        lines.append(f"- {person.name}{alias}: wanted for {person.offence} (page {pages})")
+    if registry.tip_lines:
+        numbers = "; ".join(f"{name} {number}" for name, number in registry.tip_lines.items())
+        lines.append(f"Citizen reporting numbers: {numbers}")
+    pages = sorted({page for person in people for page in person.pages})
+    return "\n".join(lines), [_cite(WANTED_PDF, page) for page in pages]
+
+
 _OPERATORS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
@@ -237,4 +269,5 @@ RECORD_TOOLS = [
     rank_divisions_by_change,
     get_national_murder_counts,
     calculate,
+    list_wanted_persons,
 ]
