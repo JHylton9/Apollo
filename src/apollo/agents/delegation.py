@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 from apollo.agents.subagents import build_crime_analyst, build_traffic_specialist
 from apollo.middleware.errors import is_handled_tool_error
+from apollo.middleware.limits import limit_hit
 
 
 def _telemetry(agent_name: str, messages: list[Any]) -> dict[str, Any]:
@@ -23,6 +24,10 @@ def _telemetry(agent_name: str, messages: list[Any]) -> dict[str, Any]:
         for m in messages
         if is_handled_tool_error(m)
     ]
+    final = messages[-1].text if messages else ""
+    if limit := limit_hit(final):
+        events.append({"middleware": limit, "detail": final, "subagent": agent_name})
+
     for message in messages:
         if isinstance(message, ToolMessage) and isinstance(message.artifact, list):
             for citation in message.artifact:

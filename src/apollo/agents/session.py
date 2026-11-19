@@ -10,8 +10,10 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
 from apollo.agents.coordinator import build_coordinator, thread_config
+from apollo.llm import get_chat_model
 from apollo.middleware import coordinator_middleware, redact_text
 from apollo.middleware.errors import is_handled_tool_error
+from apollo.middleware.limits import limit_hit
 
 Decision = dict[str, Any]
 
@@ -76,14 +78,23 @@ def _pending_actions(result: dict[str, Any]) -> list[PendingAction]:
     return actions
 
 
+def _limit_events(message: AIMessage) -> list[dict[str, Any]]:
+    """An event if this message is the one a call limit ends a run with."""
+    name = limit_hit(message.text)
+    return [{"middleware": name, "detail": message.text}] if name else []
+
+
 def _summarise(new_messages: list[Any], result: dict[str, Any]) -> Turn:
     tool_calls: list[str] = []
     delegations: list[dict[str, Any]] = []
     citations: list[dict[str, Any]] = []
     events: list[dict[str, Any]] = []
     for message in new_messages:
+        if message.additional_kwargs.get("lc_source") == "summarization":
+            events.append({"middleware": "SummarizationMiddleware"})
         if isinstance(message, AIMessage):
             tool_calls += [call["name"] for call in message.tool_calls]
+            events += _limit_events(message)
         elif isinstance(message, ToolMessage):
             if is_handled_tool_error(message):
                 events.append({"middleware": "ToolErrorMiddleware", "tool": message.name})
@@ -105,18 +116,23 @@ def _summarise(new_messages: list[Any], result: dict[str, Any]) -> Turn:
 
 class ApolloSession:
     def __init__(self, agent: Any | None = None, thread_id: str | None = None) -> None:
+        self.agent = agent or build_coordinator(
+            middleware=coordinator_middleware(summary_model=get_chat_model())
+        )
         self.thread_id = thread_id or uuid.uuid4().hex
         self.config = thread_config(self.thread_id)
         self.pending: list[PendingAction] = []
-        self.agent = agent or build_coordinator(middleware=coordinator_middleware())
 
-    def _message_count(self) -> int:
-        return len(self.agent.get_state(self.config).values.get("messages", []))
+    def _message_ids(self) -> set[str]:
+        return {m.id for m in self.agent.get_state(self.config).values.get("messages", [])}
 
     def _run(self, payload: Any) -> Turn:
-        before = self._message_count()
+        # Identify this step's messages by ID, not by position: summarization replaces
+        # older messages, so the history can get shorter between turns.
+        before = self._message_ids()
         result = self.agent.invoke(payload, self.config)
-        turn = _summarise(result["messages"][before:], result)
+        new_messages = [m for m in result["messages"] if m.id not in before]
+        turn = _summarise(new_messages, result)
         self.pending = turn.pending
         return turn
 
@@ -125,6 +141,8 @@ class ApolloSession:
             raise RuntimeError("Review the pending action(s) before sending a new message.")
         if not text.strip():
             raise ValueError("The message must not be empty.")
+        # Redact before the message enters the graph: the checkpointer saves incoming
+        # messages before any middleware runs, so this keeps raw PII out of the history.
         text, redacted = redact_text(text)
         turn = self._run({"messages": [{"role": "user", "content": text}]})
         if redacted:
@@ -142,6 +160,7 @@ class ApolloSession:
         for decision, action in zip(decisions, self.pending, strict=True):
             if decision["type"] not in action.allowed_decisions:
                 raise ValueError(f"'{decision['type']}' is not allowed for {action.name}.")
+        # Record each officer decision, so the UI can show when the HITL gate acted.
         reviewed = [
             {"middleware": "HumanInTheLoopMiddleware", "tool": a.name, "decision": d["type"]}
             for a, d in zip(self.pending, decisions, strict=True)

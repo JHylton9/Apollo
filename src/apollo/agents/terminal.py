@@ -91,6 +91,17 @@ def _show_turn(console: Console, turn: Turn) -> None:
             kinds = ", ".join(kind.upper() for kind in event["redacted"])
             console.print(f"[magenta]◆ PII[/] redacted before the model or history saw it: {kinds}")
             continue
+        if event["middleware"] == "SummarizationMiddleware":
+            console.print(
+                "[magenta]◆ Summarization[/] older messages were condensed into a summary"
+            )
+            continue
+        if event["middleware"] in {"ToolCallLimitMiddleware", "ModelCallLimitMiddleware"}:
+            where = f" in {event['subagent']}" if event.get("subagent") else ""
+            console.print(
+                f"[magenta]◆ {event['middleware']}[/] stopped the run{where}: {event['detail']}"
+            )
+            continue
         if event["middleware"] == "HumanInTheLoopMiddleware":
             console.print(
                 f"[magenta]◆ HITL[/] officer decision on {event['tool']}: {event['decision']}"

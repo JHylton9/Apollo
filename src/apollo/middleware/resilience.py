@@ -35,13 +35,12 @@ def _transient(kinds: tuple[type[Exception], ...], what: str) -> Callable[[Excep
     def should_retry(error: Exception) -> bool:
         retry = isinstance(error, kinds)
         if retry:
-                logger.warning(
+            logger.warning(
                 "%s failed (%s): transient error, retrying with backoff if attempts remain",
                 what,
                 type(error).__name__,
             )
         return retry
-    
 
     return should_retry
 

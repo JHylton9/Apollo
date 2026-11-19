@@ -10,7 +10,7 @@ from apollo.middleware.resilience import RETRYABLE_TOOLS
 from apollo.models import SearchHit
 from apollo.tools import _runtime
 
-from .fakes import ScriptedModel
+from .fakes import ScriptedModel, scripted
 
 CALLS = {"model": 0, "search": 0}
 
@@ -39,6 +39,10 @@ class FlakyModel(ScriptedModel):
         return super()._generate(messages, *args, **kwargs)
 
 
+def _summary_model():
+    return scripted(AIMessage(content="summary"))
+
+
 @pytest.fixture(autouse=True)
 def reset():
     CALLS.update(model=0, search=0)
@@ -47,7 +51,9 @@ def reset():
 def _agent(model):
     # retry_delay=0 keeps the tests fast; production uses about 1s, 2s, 4s.
     return build_coordinator(
-        model, delegation_tools=[], middleware=coordinator_middleware(retry_delay=0)
+        model,
+        delegation_tools=[],
+        middleware=coordinator_middleware(summary_model=_summary_model(), retry_delay=0),
     )
 
 
@@ -111,12 +117,20 @@ def test_actions_are_never_retried() -> None:
 
 
 def test_stack_order() -> None:
-    assert [m.name for m in coordinator_middleware()] == [
+    assert [m.name for m in coordinator_middleware(summary_model=_summary_model())] == [
         "PIIMiddleware[email]",
         "PIIMiddleware[trn]",
+        "SummarizationMiddleware",
+        "ModelCallLimitMiddleware",
         "ModelRetryMiddleware",
         "HumanInTheLoopMiddleware",
+        "ToolCallLimitMiddleware",
+        "ToolCallLimitMiddleware[issue_fine_notice]",
+        "ToolCallLimitMiddleware[log_sighting_report]",
+        "ToolCallLimitMiddleware[notify_email]",
         "ToolErrorMiddleware",
         "ToolRetryMiddleware",
     ]
-    assert "HumanInTheLoopMiddleware" not in [m.name for m in specialist_middleware()]
+    specialist = [m.name for m in specialist_middleware()]
+    assert "HumanInTheLoopMiddleware" not in specialist
+    assert "SummarizationMiddleware" not in specialist

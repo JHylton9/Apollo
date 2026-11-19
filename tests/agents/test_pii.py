@@ -12,7 +12,7 @@ from apollo.middleware import build_pii_middleware, coordinator_middleware, reda
 from apollo.retrieval.tables import FineRecord
 from apollo.tools import _runtime
 
-from .fakes import ScriptedModel
+from .fakes import ScriptedModel, scripted
 
 JANE = (
     "My name is Jane Doe, TRN 987-654-321, email jane.doe@example.com. "
@@ -29,6 +29,10 @@ class RecordingModel(ScriptedModel):
 
 
 SEEN: list[list[str]] = []
+
+
+def _summary_model():
+    return scripted(AIMessage(content="summary"))
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +91,7 @@ def test_no_model_and_no_checkpoint_ever_holds_raw_pii() -> None:
     agent = build_coordinator(
         coordinator,
         delegation_tools=build_delegation_tools(specialist),
-        middleware=coordinator_middleware(),
+        middleware=coordinator_middleware(summary_model=_summary_model()),
     )
     session = ApolloSession(agent, "pii")
 
@@ -117,5 +121,5 @@ def test_in_graph_middleware_still_protects_direct_use() -> None:
 
 
 def test_stacks_put_pii_first() -> None:
-    names = [m.name for m in coordinator_middleware()]
+    names = [m.name for m in coordinator_middleware(summary_model=_summary_model())]
     assert names[:2] == ["PIIMiddleware[email]", "PIIMiddleware[trn]"]
