@@ -36,7 +36,8 @@ def _telemetry(agent_name: str, messages: list[Any]) -> dict[str, Any]:
     return {
         "subagent": agent_name,
         "tool_calls": tool_calls,
-        "quarantined_messages": len(messages) - 1,  # everything except the final answer
+        "quarantined_messages": len(messages) - 1,
+        "answer_chars": len(messages[-1].text) if messages else 0,  # what the coordinator gets
         "quarantined_chars": sum(len(str(m.content)) for m in messages[:-1]),
         "citations": citations,
         "middleware_events": events,

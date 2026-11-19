@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -16,7 +17,12 @@ from apollo.retrieval.tables import RecordStore
 def get_settings() -> Settings:
     # APOLLO_ROOT lets the UI or tests run from another working directory.
     root = os.getenv("APOLLO_ROOT")
-    return Settings.from_root(Path(root) if root else None)
+    settings = Settings.from_root(Path(root) if root else None)
+    # APOLLO_ACTIONS_DIR sends action records elsewhere, e.g. evaluation runs keep their
+    # audit trail with the evaluation report instead of mixing it into data/actions/.
+    if actions_dir := os.getenv("APOLLO_ACTIONS_DIR"):
+        settings = dataclasses.replace(settings, actions_dir=Path(actions_dir))
+    return settings
 
 
 @lru_cache(maxsize=1)

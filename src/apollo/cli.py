@@ -127,6 +127,54 @@ def chat() -> None:
     run_chat(console)
 
 
+@app.command("evaluate")
+def evaluate_agents(
+    case: Annotated[
+        list[str] | None, typer.Option(help="Run only these case ids (repeatable).")
+    ] = None,
+) -> None:
+    """Run the Phase 2 spec test cases against the live agents and save the evidence."""
+    import os
+
+    from apollo.agents.session import ApolloSession
+    from apollo.evaluation import phase2
+    from apollo.tools import _runtime
+
+    settings = _settings()
+    out_dir = settings.reports_dir / "phase2"
+    actions_dir = out_dir / "actions"
+    actions_dir.mkdir(parents=True, exist_ok=True)
+    for old in actions_dir.glob("*.jsonl"):
+        old.unlink()  # each evaluation starts with an empty audit trail
+    # Keep this run's action records with its report, not in data/actions/.
+    os.environ["APOLLO_ACTIONS_DIR"] = str(actions_dir)
+    _runtime.get_settings.cache_clear()
+
+    cases = phase2.load_cases(settings.benchmark_file.parent / "phase2_cases.json")
+    if case:
+        cases = [c for c in cases if c["id"] in case]
+
+    def show(result: phase2.CaseResult) -> None:
+        mark = "[green]PASS[/]" if result.passed else "[red]FAIL[/]"
+        console.print(f"{mark} {result.id} ({result.seconds}s)")
+        for check in result.checks:
+            if not check.passed:
+                console.print(f"   [red]✗[/] {check.name} {check.detail}")
+        if result.error:
+            console.print(f"   [red]error:[/] {result.error}")
+
+    report = phase2.evaluate(cases, ApolloSession, actions_dir, on_result=show)
+    # A filtered run must not overwrite the full evaluation used as evidence.
+    name = "evaluation" if not case else "evaluation-partial"
+    (out_dir / f"{name}.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (out_dir / f"{name}.md").write_text(phase2.markdown_report(report), encoding="utf-8")
+    console.print(
+        f"[bold]{report['passed']}/{report['total']} passed.[/] Report: {out_dir / name}.md"
+    )
+
+
 @app.command()
 def status() -> None:
     """Show corpus and collection readiness."""

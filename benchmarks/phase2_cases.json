@@ -1,0 +1,85 @@
+{
+  "cases": [
+    {
+      "id": "subagent-traffic",
+      "category": "Subagents",
+      "question": "Calculate the total combined monetary fine for a driver caught driving without a driver's license (Section 20(4)) and failing to yield at a pedestrian crossing (Section 83(3)).",
+      "expect": {"subagent": "traffic_fine_specialist", "answer_contains": ["50,000"]}
+    },
+    {
+      "id": "subagent-crime",
+      "category": "Subagents",
+      "question": "Which JCF division experienced the highest percentage reduction in total major crimes between 2025 and 2026?",
+      "expect": {"subagent": "crime_statistics_analyst", "answer_contains": ["St. Andrew North", "59.6"]}
+    },
+    {
+      "id": "hitl-approve",
+      "category": "HITL",
+      "question": "Issue an official traffic violation notice for a driver who disobeyed a stop sign (Section 52(2)(a)) and notify the traffic department via email.",
+      "review": {"policy": "approve"},
+      "expect": {
+        "paused_for": ["issue_fine_notice", "notify_email"],
+        "records": {"fine_notices": {"fine": 10000}, "outbox": {"to": "traffic.department@jcf.gov.jm"}}
+      }
+    },
+    {
+      "id": "hitl-edit",
+      "category": "HITL",
+      "question": "Log an anonymous wanted person sighting report for suspect Dave Edwards at Kingston Central precinct.",
+      "review": {"policy": "edit", "tool": "log_sighting_report", "args": {"location": "St. Andrew South"}},
+      "expect": {
+        "paused_for": ["log_sighting_report"],
+        "records": {"sighting_reports": {"suspect_name": "Dave Edwards", "division": "St. Andrew South"}}
+      }
+    },
+    {
+      "id": "pii-redaction",
+      "category": "Middleware",
+      "question": "My name is Jane Doe, TRN 987-654-321, email jane.doe@example.com. Check if I have any recorded fines for no valid certificate of fitness.",
+      "expect": {
+        "middleware": ["PII"],
+        "answer_contains": ["15,000", "7(3)"],
+        "never_stored": ["987-654-321", "jane.doe@example.com"]
+      }
+    },
+    {
+      "id": "tool-error",
+      "category": "Middleware",
+      "question": "Query the traffic fines database for invalid_section_code_9999.",
+      "expect": {"middleware": ["ToolErrorMiddleware"], "answer_contains": ["valid"]}
+    },
+    {
+      "id": "wanted-murder",
+      "category": "Retrieval",
+      "question": "List all individuals currently listed as wanted for Murder in the JCF registry, and state the official emergency tip line numbers provided for citizen reporting.",
+      "expect": {
+        "answer_contains": ["Dave Edwards", "Derrick Johnson", "Raheem Brown", "Jermaine Richards", "Christopher Comrie", "Derrick Shaw", "Samuel Brown", "Jevaughn Campbell", "119", "311", "876-838-3589"],
+        "answer_excludes": ["Leroy Gray", "Conroy Robinson"]
+      }
+    },
+    {
+      "id": "fine-comparison",
+      "category": "Retrieval",
+      "question": "What is the fine amount and demerit point penalty for exceeding the speed limit in a school safety zone by 33-49 km/h under Section 76(4), and how does it compare to driving without a seatbelt under Section 72(4)?",
+      "expect": {"subagent": "traffic_fine_specialist", "answer_contains": ["20,000", "2,000"]}
+    },
+    {
+      "id": "division-comparison",
+      "category": "Retrieval",
+      "question": "Compare the 2025 and 2026 murder counts for St. James versus Westmoreland division. Which division recorded an increase and by what percentage?",
+      "expect": {"subagent": "crime_statistics_analyst", "answer_contains": ["46", "54", "17.4", "33", "23", "30.3"]}
+    },
+    {
+      "id": "historic-counts",
+      "category": "Retrieval",
+      "question": "What was the national murder total in Jamaica for the years 1980, 2005, and 2024 based on the JCF historical murder counts PDF?",
+      "expect": {"subagent": "crime_statistics_analyst", "answer_contains": ["889", "1,674", "1,147"]}
+    },
+    {
+      "id": "quarantine-search",
+      "category": "Subagents",
+      "question": "Search the fine schedule for all offences involving pedestrian crossings and summarise them.",
+      "expect": {"subagent": "traffic_fine_specialist"}
+    }
+  ]
+}

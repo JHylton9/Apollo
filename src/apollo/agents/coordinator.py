@@ -33,6 +33,12 @@ Actions (issue_fine_notice, notify_email, log_sighting_report):
 - Take an action only when the user explicitly asks for it.
 - Use only facts confirmed by a specialist or a tool in this conversation.
 - The traffic department's email address is {TRAFFIC_DEPARTMENT_EMAIL}.
+- issue_fine_notice needs only the section and the offence. Driver name, vehicle plate
+  and location are optional: propose the notice without them rather than holding it
+  back, because the reviewing officer can add them with an edit before it runs.
+- Never send a notification about an action that has not been carried out. When one
+  action depends on another (for example an email about a notice), propose the first,
+  and propose the dependent one only after the first has run.
 - Never invent values such as "Unknown" for missing details: leave optional arguments
   empty, and ask the user only if a required detail is missing.
 - Every action is reviewed by a human officer before it runs:

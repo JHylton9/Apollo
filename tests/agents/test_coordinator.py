@@ -1,7 +1,9 @@
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
 
 from apollo.agents.coordinator import build_coordinator, thread_config
 from apollo.agents.delegation import build_delegation_tools
@@ -40,7 +42,7 @@ def test_coordinator_delegates_and_receives_only_the_answer() -> None:
 
     result = agent.invoke(
         {"messages": [{"role": "user", "content": "What is the stop sign fine?"}]},
-        thread_config("t1"),
+        cast(RunnableConfig, thread_config("t1")),
     )
 
     tool_results = [m for m in result["messages"] if isinstance(m, ToolMessage)]
@@ -56,7 +58,7 @@ def test_checkpointer_remembers_earlier_turns() -> None:
         scripted(AIMessage(content="Hello."), AIMessage(content="You asked about fines.")),
         delegation_tools=[],
     )
-    config = thread_config("officer-42")
+    config = cast(RunnableConfig, thread_config("officer-42"))
     agent.invoke({"messages": [{"role": "user", "content": "Hi"}]}, config)
     result = agent.invoke({"messages": [{"role": "user", "content": "What did I ask?"}]}, config)
     # Both turns are in the thread's saved state: 2 user + 2 assistant messages.
@@ -65,7 +67,10 @@ def test_checkpointer_remembers_earlier_turns() -> None:
 
 def test_coordinator_owns_registry_and_action_tools() -> None:
     agent = build_coordinator(scripted(AIMessage(content="ok")), delegation_tools=[])
-    names = set(agent.get_graph().nodes["tools"].data.tools_by_name)
+    tools_node = agent.get_graph().nodes["tools"].data
+    tools_by_name = getattr(tools_node, "tools_by_name", None)
+    assert tools_by_name is not None
+    names = set(tools_by_name)
     assert {"search_wanted_persons", "issue_fine_notice", "log_sighting_report"} <= names
     assert "lookup_traffic_fine" not in names  # traffic lookups go through the specialist
 
@@ -76,3 +81,12 @@ def test_prompt_explains_every_review_outcome() -> None:
     for outcome in ("Approved:", "Edited:", "Rejected:", "Responded:"):
         assert outcome in COORDINATOR_PROMPT
     assert "Never invent values" in COORDINATOR_PROMPT
+
+
+def test_prompt_covers_optional_details_and_dependent_actions() -> None:
+    from apollo.agents.coordinator import COORDINATOR_PROMPT
+
+    assert "issue_fine_notice needs only the section and the offence" in COORDINATOR_PROMPT
+    assert "Never send a notification about an action that has not been carried out" in (
+        COORDINATOR_PROMPT
+    )
